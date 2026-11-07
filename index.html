@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en" data-t="light"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Quiz Platform</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--tx:#1b2333;--mu:#667085;--pr:#4f46e5;--ok:#16a34a;--bad:#dc2626;--wa:#d97706;--bd:#e4e7ef}
+[data-t=dark]{--bg:#0f1420;--card:#182031;--tx:#e8ecf5;--mu:#9aa6bd;--bd:#2a3350;--pr:#818cf8}
+*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx);transition:background .3s}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 20px;background:var(--card);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:5}
+header b{font-size:1.15rem;margin-right:auto;color:var(--pr);cursor:pointer}#nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#nav a,a{cursor:pointer;color:var(--pr);text-decoration:none;font-weight:600}
+main{max-width:980px;margin:0 auto;padding:20px;animation:fi .3s}@keyframes fi{from{opacity:0;transform:translateY(8px)}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.subj{cursor:pointer;color:#fff;border:0;background:linear-gradient(135deg,hsl(var(--h),65%,48%),hsl(calc(var(--h) + 40),70%,38%));transition:transform .2s}
+.subj:hover{transform:translateY(-4px)}.subj h3{margin:0 0 6px}.subj p{margin:0;opacity:.9}
+.btn{background:var(--pr);color:#fff;border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+.btn.s{background:var(--bg);color:var(--tx);border:1px solid var(--bd);padding:6px 12px}.btn.warn{background:var(--wa);color:#fff}.btn.red{background:var(--bad);color:#fff}
+.btn:disabled{opacity:.4;cursor:default}
+input,select,textarea{font:inherit;padding:9px;border:1px solid var(--bd);border-radius:9px;background:var(--bg);color:var(--tx);max-width:100%}
+textarea,.w{width:100%}label{display:block;margin:8px 0 3px;font-weight:600;font-size:.9rem}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}.sp{justify-content:space-between}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}.tile small{color:var(--mu);display:block}.tile b{font-size:1.5rem}
+.bar{height:9px;background:var(--bd);border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;transition:width .4s}
+small,.mu{color:var(--mu)}.chk{display:flex;gap:8px;align-items:center;padding:6px 0;font-weight:400}
+.opt{border:2px solid var(--bd);border-radius:11px;padding:12px;margin:9px 0;cursor:pointer;transition:.15s}.opt:hover{border-color:var(--pr)}
+.opt.sel{border-color:var(--pr);background:color-mix(in srgb,var(--pr) 14%,transparent)}
+.rv .opt{cursor:default}.opt.good{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 15%,transparent)}.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,transparent)}
+.rv.ok{border-left:6px solid var(--ok)}.rv.no{border-left:6px solid var(--bad)}.rv.na{border-left:6px solid var(--mu)}.ex{background:var(--bg);padding:8px 12px;border-radius:8px}
+.pal{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px}.pal span{width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-size:.85rem}
+.pal .done{background:var(--pr);color:#fff}.pal .mk{outline:3px solid var(--wa)}.pal .cur{border:2px solid var(--tx)}
+.top{display:flex;justify-content:space-between}table{width:100%;border-collapse:collapse}td,th{padding:6px;border-bottom:1px solid var(--bd);text-align:left;font-size:.88rem;vertical-align:top}
+.ov{overflow-x:auto}.on{background:color-mix(in srgb,var(--pr) 12%,transparent);border-radius:8px;padding:2px 8px}.er{color:var(--bad)}.wn{color:var(--wa)}
+.auth{max-width:380px;margin:60px auto}#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ok);color:#fff;padding:10px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:.3s;z-index:9}
+#toast.show{opacity:1}#toast.bad{background:var(--bad)}
+@media(max-width:600px){main{padding:12px}header{padding:8px 12px}}
+</style></head><body>
+<header><b onclick="go('home')">🎓 Smart Quiz Platform</b><div id="nav"></div></header>
+<main id="view"></main><div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s),V=$('#view'),views={};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let me=null,Q=null,timer=null,A={},P=[];
+async function api(u,m='GET',b){const o={method:m,headers:{}};if(b instanceof FormData)o.body=b;else if(b){o.headers['Content-Type']='application/json';o.body=JSON.stringify(b)}
+ const r=await fetch(u,o),j=await r.json().catch(()=>({}));if(!r.ok){if(r.status===401&&me&&u!=='/api/login'){me=null;head();views.auth()}throw new Error(j.error||'Error')}return j}
+const toast=(m,bad)=>{const t=$('#toast');t.textContent=m;t.className='show'+(bad?' bad':'');clearTimeout(t.h);t.h=setTimeout(()=>t.className='',3500)};
+const wrap=f=>async(...a)=>{try{await f(...a)}catch(e){toast(e.message,1)}};
+const pct=(a,b)=>b?Math.round(100*a/b):0,sum=(l,k)=>l.reduce((s,x)=>s+x[k],0),fmt=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+const bar=(p,c)=>`<div class="bar"><i style="width:${p}%;background:${c||'var(--pr)'}"></i></div>`;
+const col=p=>p>=75?'var(--ok)':p>=50?'var(--wa)':'var(--bad)';
+const go=wrap(async(v,a)=>{clearInterval(timer);Q=Q&&v==='quiz'?Q:null;await views[v](a);scrollTo(0,0)});
+function theme(){const d=document.documentElement;d.dataset.t=d.dataset.t=='dark'?'light':'dark';localStorage.t=d.dataset.t}
+document.documentElement.dataset.t=localStorage.t||'light';
+function head(){$('#nav').innerHTML=me?`<a onclick="go('home')">Home</a><a onclick="go('mistakes')">My Mistakes</a><a onclick="go('stats')">Statistics</a>${me.role=='admin'?`<a onclick="go('admin')">Admin</a>`:''}<button class="btn s" onclick="theme()">🌓</button><button class="btn s" onclick="logout()">Logout (${esc(me.username)})</button>`:`<button class="btn s" onclick="theme()">🌓</button>`}
+const logout=wrap(async()=>{await api('/api/logout','POST');me=null;head();views.auth()});
+
+views.auth=()=>{V.innerHTML=`<div class="card auth"><h2>Welcome 👋</h2><label>Username</label><input id="u" class="w"><label>Password</label><input id="p" type="password" class="w"><div class="row"><button class="btn" onclick="doAuth(0)">Login</button><button class="btn s" onclick="doAuth(1)">Register</button></div></div>`};
+const doAuth=wrap(async reg=>{me=await api(reg?'/api/register':'/api/login','POST',{username:$('#u').value,password:$('#p').value});head();go('home')});
+
+views.home=async()=>{const s=await api('/api/subjects');V.innerHTML=`<h1>Your subjects</h1><div class="grid">${s.map(x=>`<div class="card subj" style="--h:${x.id*47%360}" onclick="go('subject',${x.id})"><h3>${esc(x.name)}</h3><p>${x.questions} questions · ${x.chapters} chapters</p></div>`).join('')}</div>${s.length?'':'<div class="card">No subjects yet.'+(me.role=='admin'?' Add some in the Admin panel.':'')+'</div>'}`};
+
+views.subject=async id=>{const d=await api('/api/subjects/'+id),ch=d.chapters,tot=sum(ch,'total'),ans=sum(ch,'rt')+sum(ch,'wr');
+ const weak=ch.filter(c=>c.rt+c.wr>=3&&pct(c.rt,c.rt+c.wr)<70).sort((a,b)=>pct(a.rt,a.rt+a.wr)-pct(b.rt,b.rt+b.wr));
+ V.innerHTML=`<a onclick="go('home')">← All subjects</a><h1>${esc(d.subject.name)}</h1>
+ <div class="tiles">${[['Questions',tot],['Chapters',ch.length],['Completed',sum(ch,'seen')+' / '+tot],['Accuracy',ans?pct(sum(ch,'rt'),ans)+'%':'–']].map(([a,b])=>`<div class="tile"><small>${a}</small><b>${b}</b></div>`).join('')}</div>
+ <div class="card"><h3>Generate a quiz</h3><div class="row"><a onclick="tg(1)">Select all</a><a onclick="tg(0)">Clear</a></div>
+ ${ch.map(c=>`<label class="chk"><input type="checkbox" class="ck" value="${c.id}" checked> ${esc(c.name)} <small>${c.total} questions${c.rt+c.wr?' · '+pct(c.rt,c.rt+c.wr)+'% accuracy':''}</small></label>`).join('')||'<p class="mu">No chapters yet.</p>'}
+ <div class="row"><div><label>Questions</label><select id="n" onchange="$('#nc').style.display=this.value=='c'?'':'none'">${[10,20,30,40,50].map(n=>`<option>${n}</option>`).join('')}<option value="c">Custom</option></select> <input id="nc" type="number" min="1" max="200" value="15" style="display:none;width:80px"></div>
+ <div><label>Difficulty</label><select id="df"><option>Mixed</option><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
+ <div><label>Time limit (min, 0 = none)</label><input id="tl" type="number" min="0" value="0" style="width:90px"></div></div>
+ <label class="chk"><input type="checkbox" id="sh" checked> Shuffle answer choices</label>
+ <div class="row"><button class="btn" onclick="startQuiz(${id},0)">Start quiz</button><button class="btn s" onclick="startQuiz(${id},1)">Practice My Mistakes</button></div></div>
+ <div class="card"><h3>Weak chapters</h3>${weak.map(c=>`<div>${esc(c.name)} <b style="color:var(--bad)">${pct(c.rt,c.rt+c.wr)}%</b>${bar(pct(c.rt,c.rt+c.wr),'var(--bad)')}</div>`).join('')||'<p class="mu">None yet. Keep practicing!</p>'}</div>
+ <div class="card"><h3>Recent quizzes</h3>${d.recent.map(r=>`<div class="row sp"><span>${r.finished.replace('T',' ')}</span><b>${r.correct}/${r.total}</b><span>${pct(r.correct,r.total)}%</span><small>${fmt(r.duration)}</small></div>`).join('')||'<p class="mu">No quizzes yet.</p>'}</div>`};
+const tg=v=>document.querySelectorAll('.ck').forEach(e=>e.checked=!!v);
+const startQuiz=wrap(async(sid,mist)=>{let n=$('#n').value;if(n==='c')n=$('#nc').value;const ch=[...document.querySelectorAll('.ck:checked')].map(e=>+e.value);
+ const r=await api('/api/quiz','POST',{subject:sid,chapters:ch,n:+n,difficulty:$('#df').value,shuffle:$('#sh').checked,mistakes:mist});
+ Q={sid,qs:r.questions,i:0,a:{},m:new Set(),t0:Date.now(),lim:(+$('#tl').value||0)*60};go('quiz')});
+const practice=wrap(async sid=>{const r=await api('/api/quiz','POST',{subject:sid,chapters:[],n:20,shuffle:true,mistakes:true});Q={sid,qs:r.questions,i:0,a:{},m:new Set(),t0:Date.now(),lim:0};go('quiz')});
+
+views.quiz=()=>{timer=setInterval(tick,1000);drawQ()};
+function tick(){const e=Math.floor((Date.now()-Q.t0)/1000);if(Q.lim&&e>=Q.lim){finish(1);return}$('#tm')&&($('#tm').textContent='⏱ '+fmt(Q.lim?Q.lim-e:e))}
+function drawQ(){const q=Q.qs[Q.i],N=Q.qs.length,n=Object.keys(Q.a).length;
+ V.innerHTML=`<div class="card"><div class="top"><b>Question ${Q.i+1} / ${N}</b><span id="tm"></span></div>${bar(pct(n,N))}<small>${n} of ${N} answered</small><small class="mu"> · ${esc(q.chapter)}</small>
+ <h3>${esc(q.text)}</h3>${q.options.map((o,j)=>`<div class="opt ${Q.a[q.id]==o.k?'sel':''}" onclick="pick(${q.id},'${o.k}')"><b>${'ABCD'[j]}.</b> ${esc(o.t)}</div>`).join('')}
+ <div class="row"><button class="btn s" onclick="mv(-1)" ${Q.i?'':'disabled'}>← Previous</button><button class="btn s ${Q.m.has(q.id)?'warn':''}" onclick="mark()">🚩 ${Q.m.has(q.id)?'Unmark':'Mark for review'}</button><button class="btn s" onclick="mv(1)" ${Q.i<N-1?'':'disabled'}>Next →</button><button class="btn" onclick="finish()">Submit quiz</button></div>
+ <div class="pal">${Q.qs.map((x,k)=>`<span class="${k==Q.i?'cur':''} ${Q.a[x.id]?'done':''} ${Q.m.has(x.id)?'mk':''}" onclick="Q.i=${k};drawQ()">${k+1}</span>`).join('')}</div></div>`;tick()}
+const pick=(id,k)=>{Q.a[id]==k?delete Q.a[id]:Q.a[id]=k;drawQ()},mv=d=>{Q.i+=d;drawQ()},mark=()=>{const id=Q.qs[Q.i].id;Q.m.has(id)?Q.m.delete(id):Q.m.add(id);drawQ()};
+const finish=wrap(async auto=>{const un=Q.qs.length-Object.keys(Q.a).length;if(!auto&&!confirm(un?`${un} question(s) unanswered. Submit anyway?`:'Submit the quiz?'))return;clearInterval(timer);
+ const r=await api('/api/quiz/submit','POST',{ids:Q.qs.map(x=>x.id),answers:Q.a,duration:Math.round((Date.now()-Q.t0)/1000)});Q=null;results(r)});
+function results(r){const an=r.total-r.unanswered;V.innerHTML=`<h1>Results</h1><div class="tiles">${[['Score',r.correct+' / '+r.total+' ('+pct(r.correct,r.total)+'%)'],['Accuracy',pct(r.correct,an)+'%'],['Correct',r.correct],['Incorrect',r.wrong],['Unanswered',r.unanswered],['Time',fmt(r.duration)]].map(([a,b])=>`<div class="tile"><small>${a}</small><b style="font-size:1.2rem">${b}</b></div>`).join('')}</div>
+ <div class="row"><button class="btn" onclick="go('subject',${r.subject_id})">Back to subject</button></div><h2>Review</h2>
+ ${r.review.map((q,i)=>`<div class="card rv ${q.chosen?(q.ok?'ok':'no'):'na'}"><small>${esc(q.subject)} · ${esc(q.chapter)}</small><h4>${i+1}. ${esc(q.text)}</h4>${'ABCD'.split('').map(k=>`<div class="opt ${k==q.correct?'good':''} ${k==q.chosen&&!q.ok?'wrong':''}"><b>${k}.</b> ${esc(q[k.toLowerCase()])} ${k==q.correct?'✓ correct':''}${k==q.chosen&&!q.ok?' ✗ your answer':''}</div>`).join('')}<p><b>${q.chosen?(q.ok?'✅ Correct':'❌ Incorrect'):'⚪ Not answered'}</b>${q.chosen?' · You chose '+q.chosen:''}</p>${q.expl?`<p class="ex">💡 ${esc(q.expl)}</p>`:''}</div>`).join('')}`}
+
+views.mistakes=async()=>{const m=await api('/api/mistakes'),by={};m.forEach(x=>(by[x.sid]??={n:x.subject,l:[]}).l.push(x));
+ V.innerHTML=`<h1>My Mistakes</h1>${!m.length?'<div class="card">No mistakes yet 🎉</div>':Object.entries(by).map(([sid,g])=>`<div class="card"><div class="row sp"><h3>${esc(g.n)} (${g.l.length})</h3><button class="btn" onclick="practice(${sid})">Practice My Mistakes</button></div><div class="ov"><table><tr><th>Question</th><th>Chapter</th><th>✗</th><th>✓</th><th>Last</th><th>Status</th></tr>${g.l.map(x=>`<tr><td>${esc(x.text)}</td><td>${esc(x.chapter)}</td><td>${x.wr}</td><td>${x.rt}</td><td>${(x.last||'').slice(0,10)}</td><td>${x.status}</td></tr>`).join('')}</table></div></div>`).join('')}`};
+
+views.stats=async()=>{const s=await api('/api/stats'),t=s.totals,w=s.chapters.filter(c=>c.rt+c.wr>=3).sort((a,b)=>pct(a.rt,a.rt+a.wr)-pct(b.rt,b.rt+b.wr)).slice(0,5),h=s.history;
+ const pts=h.map((x,i)=>`${h.length>1?20+i*560/(h.length-1):300},${150-pct(x.correct,x.answered||1)*1.3}`).join(' ');
+ const row=(n,a,b)=>`<div style="margin:8px 0">${esc(n)} <b>${b?pct(a,b)+'%':'–'}</b> <small>(${a}/${b})</small>${bar(pct(a,b),col(pct(a,b)))}</div>`;
+ V.innerHTML=`<h1>Statistics</h1><div class="tiles">${[['Quizzes',t.quizzes],['Questions answered',t.answered],['Correct',t.correct],['Incorrect',t.answered-t.correct],['Accuracy',t.answered?pct(t.correct,t.answered)+'%':'–']].map(([a,b])=>`<div class="tile"><small>${a}</small><b>${b}</b></div>`).join('')}</div>
+ <div class="card"><h3>By subject</h3>${s.subjects.map(x=>row(x.name,x.rt,x.rt+x.wr)).join('')}</div>
+ <div class="card"><h3>Most difficult chapters</h3>${w.map(c=>row(c.subject+' · '+c.name,c.rt,c.rt+c.wr)).join('')||'<p class="mu">Answer at least 3 questions in a chapter to see it here.</p>'}</div>
+ <div class="card"><h3>By chapter</h3>${s.chapters.map(c=>row(c.subject+' · '+c.name,c.rt,c.rt+c.wr)).join('')}</div>
+ <div class="card"><h3>Improvement over time (accuracy per quiz)</h3>${h.length?`<svg viewBox="0 0 600 160" style="width:100%"><line x1="20" y1="20" x2="580" y2="20" stroke="var(--bd)"/><line x1="20" y1="85" x2="580" y2="85" stroke="var(--bd)"/><line x1="20" y1="150" x2="580" y2="150" stroke="var(--bd)"/><polyline fill="none" stroke="var(--pr)" stroke-width="3" points="${pts}"/>${pts.split(' ').map(p=>`<circle cx="${p.split(',')[0]}" cy="${p.split(',')[1]}" r="4" fill="var(--pr)"/>`).join('')}</svg>`:'<p class="mu">Complete a quiz first.</p>'}</div>`};
+
+/* ---------- admin ---------- */
+const chOpts=extra=>(extra||'')+A.ch.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+views.admin=async sel=>{A.s=await api('/api/subjects');A.sid=sel??(A.s.find(x=>x.id==A.sid)?A.sid:A.s[0]?.id);A.ch=A.sid?(await api('/api/subjects/'+A.sid)).chapters:[];P=[];A.edit=null;
+ V.innerHTML=`<h1>Admin</h1><div class="card"><h3>Subjects</h3>${A.s.map(x=>`<div class="row sp"><a class="${x.id==A.sid?'on':''}" onclick="go('admin',${x.id})">${esc(x.name)}</a><small>${x.questions} questions</small><span><button class="btn s" onclick="ren('subjects',${x.id})">Rename</button> <button class="btn s red" onclick="del('subjects',${x.id})">Delete</button></span></div>`).join('')}
+ <div class="row"><input id="ns" placeholder="New subject name"><button class="btn" onclick="add('subjects')">Add subject</button></div></div>
+ ${A.sid?`<div class="card"><h3>Chapters of “${esc(A.s.find(x=>x.id==A.sid).name)}”</h3>${A.ch.map(c=>`<div class="row sp"><span>${esc(c.name)} <small>${c.total} questions</small></span><span><button class="btn s" onclick="ren('chapters',${c.id})">Rename</button> <button class="btn s red" onclick="del('chapters',${c.id})">Delete</button></span></div>`).join('')}
+ <div class="row"><input id="nch" placeholder="New chapter name"><button class="btn" onclick="add('chapters')">Add chapter</button></div></div>
+ <div class="card"><h3>Upload question bank (.pdf .xlsx .csv .json)</h3><div class="row"><select id="uc">${chOpts()}<option value="0">Use “chapter” column from file (auto-create)</option></select><input type="file" id="uf" accept=".pdf,.xlsx,.csv,.json"><button class="btn" onclick="prev()">Preview</button></div><div id="pv"></div></div>
+ <div class="card"><h3 id="mh">Add question manually</h3><label>Chapter</label><select id="mch">${chOpts()}</select><label>Question</label><textarea id="mt" rows="2"></textarea>
+ ${'ABCD'.split('').map(k=>`<label>Choice ${k}</label><input class="w mc" id="m${k}">`).join('')}
+ <div class="row"><div><label>Correct</label><select id="mc"><option>A</option><option>B</option><option>C</option><option>D</option></select></div><div><label>Difficulty</label><select id="mdf"><option value="">None</option><option>Easy</option><option>Medium</option><option>Hard</option></select></div></div>
+ <label>Explanation (optional)</label><textarea id="mex" rows="2"></textarea><div class="row"><button class="btn" onclick="saveQ()">Save question</button></div></div>
+ <div class="card"><h3>Questions in chapter</h3><select id="qf" onchange="loadQs()">${chOpts('<option value="">– choose chapter –</option>')}</select><div id="ql" class="ov"></div></div>`:''}`};
+const add=wrap(async k=>{const n=$(k=='subjects'?'#ns':'#nch').value;await api('/api/'+k,'POST',{name:n,subject_id:A.sid});go('admin',k=='subjects'?undefined:A.sid)});
+const ren=wrap(async(k,id)=>{const o=(k=='subjects'?A.s:A.ch).find(x=>x.id==id),n=prompt('New name',o.name);if(n){await api(`/api/${k}/${id}`,'PUT',{name:n});go('admin',A.sid)}});
+const del=wrap(async(k,id)=>{if(confirm('Delete this and ALL its '+(k=='subjects'?'chapters, questions and student history':'questions')+'? This cannot be undone.')){await api(`/api/${k}/${id}`,'DELETE');go('admin',k=='subjects'?undefined:A.sid)}});
+const prev=wrap(async()=>{const f=$('#uf').files[0];if(!f)return toast('Choose a file first',1);const fd=new FormData();fd.append('file',f);$('#pv').innerHTML='Reading…';
+ const r=await api('/api/admin/preview','POST',fd);P=r.questions.map(q=>({...q,inc:!q.errors.length}));drawPv(r.notes)});
+function drawPv(notes){notes=notes||A.notes||[];A.notes=notes;const n=P.filter(q=>q.inc).length;
+ $('#pv').innerHTML=`${notes.map(x=>`<p class="wn">⚠ ${esc(x)}</p>`).join('')}<p><b>${P.length}</b> questions found · <b>${n}</b> selected${P.length?` · <small>Check choices and correct answers, fix any red rows.</small>`:''}</p>
+ ${P.length?`<div class="ov"><table><tr><th></th><th>Question / choices</th><th>Correct</th><th>Issues</th></tr>${P.map((q,i)=>`<tr><td><input type="checkbox" ${q.inc?'checked':''} onchange="P[${i}].inc=this.checked;drawPv()"></td><td><b>${esc(q.text)}</b>${q.chapter?` <small>[${esc(q.chapter)}]</small>`:''}<br>${q.choices.map((c,j)=>`<small>${'ABCD'[j]}) ${esc(c)}</small>`).join('<br>')}</td><td><select onchange="fixC(${i},this.value)"><option value="">?</option>${'ABCD'.split('').map(k=>`<option ${q.correct==k?'selected':''}>${k}</option>`).join('')}</select></td><td>${q.errors.map(e=>`<div class="er">${esc(e)}</div>`).join('')}${q.warnings.map(e=>`<div class="wn">${esc(e)}</div>`).join('')}</td></tr>`).join('')}</table></div>
+ <div class="row"><button class="btn" onclick="commit()">Save ${n} questions</button></div>`:''}`}
+function fixC(i,v){const q=P[i];q.correct=v;q.errors=q.errors.filter(e=>!/correct answer/.test(e));if(!v)q.errors.push('Missing/invalid correct answer');q.inc=!q.errors.length;drawPv()}
+const commit=wrap(async()=>{const c=+$('#uc').value,r=await api('/api/admin/commit','POST',{subject_id:A.sid,chapter_id:c||null,questions:P.filter(q=>q.inc)});toast(`Added ${r.added} · duplicates skipped ${r.duplicates} · invalid skipped ${r.skipped}`);go('admin',A.sid)});
+const saveQ=wrap(async()=>{const b={chapter_id:+$('#mch').value,text:$('#mt').value,choices:'ABCD'.split('').map(k=>$('#m'+k).value),correct:$('#mc').value,difficulty:$('#mdf').value,explanation:$('#mex').value};
+ await api(A.edit?'/api/admin/questions/'+A.edit:'/api/admin/questions',A.edit?'PUT':'POST',b);toast('Saved');const f=$('#qf').value;go('admin',A.sid);if(f)setTimeout(()=>{$('#qf').value=f;loadQs()},400)});
+const loadQs=wrap(async()=>{const c=$('#qf').value;if(!c){$('#ql').innerHTML='';return}A.qs=await api('/api/admin/questions?chapter='+c);
+ $('#ql').innerHTML=`<p>${A.qs.length} questions</p><table>${A.qs.map(q=>`<tr><td>${esc(q.text)}<br><small>Answer ${q.correct}${q.difficulty?' · '+q.difficulty:''}</small></td><td><button class="btn s" onclick="editQ(${q.id})">Edit</button> <button class="btn s red" onclick="delQ(${q.id})">Delete</button></td></tr>`).join('')}</table>`});
+function editQ(id){const q=A.qs.find(x=>x.id==id);A.edit=id;$('#mch').value=q.chapter_id;$('#mt').value=q.text;'ABCD'.split('').forEach(k=>$('#m'+k).value=q[k.toLowerCase()]);$('#mc').value=q.correct;$('#mdf').value=q.difficulty||'';$('#mex').value=q.expl||'';$('#mh').textContent='Editing question #'+id;$('#mt').scrollIntoView({behavior:'smooth'})}
+const delQ=wrap(async id=>{if(confirm('Delete this question?')){await api('/api/admin/questions/'+id,'DELETE');loadQs()}});
+
+(async()=>{try{me=await api('/api/me');head();go('home')}catch{head();views.auth()}})();
+</script></body></html>
